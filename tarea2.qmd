@@ -1,0 +1,36 @@
+---
+title: "Estadística Aplicada 3 - Tarea 2"
+lang: es
+author: 
+  -Marcelino
+  -David
+  -Daniela
+date: today
+header-includes:
+  - \usepackage{listings}
+  - \usepackage{color} % si aún no lo has incluido; es necesario para \textcolor
+  - \lstset{breaklines=true, postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space}}
+
+format:
+  html:
+    page-layout: full
+    embed-resources: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment=NA, tidy.opts=list(width.cutoff=40))
+```
+
+```{r, message=FALSE, warning=FALSE}
+#Cargamos paquetes
+library(tidymodels)
+library(discrim)
+library(corrr)
+library(paletteer)
+library(MASS)
+library(dslabs)
+library(tidyr)
+
+# Cargamos bases de datos
+data2 <- iris
+```
