@@ -6,10 +6,6 @@ author:
   -David
   -Daniela
 date: today
-header-includes:
-  - \usepackage{listings}
-  - \usepackage{color} % si aún no lo has incluido; es necesario para \textcolor
-  - \lstset{breaklines=true, postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space}}
 
 format:
   html:
@@ -30,7 +26,73 @@ library(paletteer)
 library(MASS)
 library(dslabs)
 library(tidyr)
+library(openxlsx)
 
 # Cargamos bases de datos
-data2 <- iris
 ```
+
+# Ejercicio 1
+
+Consider the color-stimuli experiment outlined in Section 13.2.1. The similarity ratings are given in the file color-stimuli on the books's website. Carry out a clasical scaling of the data and show that the solution is a "color circle" ranging from violet (434 $m\mu$) to blue (472 $m\mu$) to green (504 $m\mu$) to yellow (584 $m\mu$) tto red  (674 $m\mu$). Compare the solution to the nonmetric scaling solution given in Figure 13.3.
+
+```{r}
+# Cargamos base de datos
+data1 <- read.xlsx("color_stimuli.xlsx")
+matrix <- as.matrix(data1)
+
+# Clasical scaling
+classical <- cmdscale(matrix, k=2, eig=TRUE, add=TRUE)
+plot(classical$points, xlab="Dimension 1", ylab="Dimension 2", main="Clasical Scaling")
+```
+
+# Ejercicio 5
+
+(A) Show that the following algorithm (Devroye 1987) generates random variables  (x,y) from the Marshall-Olkin bivariate exponential distribution with parameters $\lambda_{1}$, $\lambda_{2}$ and $\lambda_{1,2}$. 
+
+    1.-Generate three independent uniform (0,1) variates $r, s, t$
+
+    2.-Set $x= min\left(\frac{-ln r}{\lambda_{1}},\frac{-ln t}{\lambda_{1,2}}\right)$ , $y= min\left(\frac{-ln s}{\lambda_{2}},\frac{-ln t}{\lambda_{1,2}}\right)$
+
+    3.- The desired pair is $(x,y)$.
+
+Primero notemos que si $Z$ es una variable aleatoria con distribución $Exp(\lambda)$, entonces su distribución acumulada es $F_{Z}(z)=1-e^{-\lambda z}$ y por lo tanto $F_{Z}^{-1}(u)=-\frac{ln(1-u)}{\lambda}$.
+
+Con lo cual por el teorema de la transformada inversa, si $U$ es una variable aleatoria con distribución uniforme en $(0,1)$, entonces $F_{Z}^{-1}(U)=-\frac{ln(1-U)}{\lambda}$ tiene distribución $Exp(\lambda)$. 
+
+Por lo tanto con el algoritmo, tenemos que $Z_{1}=-\frac{ln(1-r)}{\lambda_{1}}$, $Z_{2}=-\frac{ln(1-s)}{\lambda_{2}}$ y $Z_{3}=-\frac{ln(1-t)}{\lambda_{1,2}}$ tienen distribución $Exp(\lambda_{1})$, $Exp(\lambda_{2})$ y $Exp(\lambda_{1,2})$ respectivamente. Las cuales son exponenciales independientes porque son transformaciones individuales de variables que igualmente son independientes. Y de acuerdo con la definición del libro, $X=min(Z_{1},Z_{3})$ y $Y=min(Z_{2},Z_{3})$ tienen distribución Marshall-Olkin bivariada con parámetros $\lambda_{1}$, $\lambda_{2}$ y $\lambda_{1,2}$.
+
+**CHECAR CON PROFE DEMOSTRACIÓN**
+
+(B) Show that $u=e^{-(\lambda_{1}+\lambda_{1,2})x}$ and $v=e^{-(\lambda_{2}+\lambda_{1,2})y}$ are uniform (0,1) variates whose joint distribution is the Marshall-Olkin copula given by 3.1.3.
+
+En este caso necesitamos demostrar el siguiente lema. Sean $X$ y $Y$ variables aleatorias independientes con distribución $Exp(\lambda)$ y $Exp(\mu)$ respectivamente. Entonces $Z=\text{min}(X,Y)\sim Exp(\lambda + \mu)$. 
+
+Para demostrarlo notemos que $P(Z>=z)=P(X>=x, Y>=y)$ y como son independientes obtenemos el siguiente desarrollo:
+
+\begin{align*}
+P(Z\geq z)=P(X\geq z, Y\geq z) &= P(X\geq z)P(Y\geq z)\\
+ &= e^{-\lambda z }e^{-\mu z} \\
+ &= e^{-(\lambda+\mu)z} \\
+\end{align*}
+
+Es decir, $Z\sim Exp(\lambda + \mu)$.
+
+Por lo tanto, sean $Z_{1}$, $Z_{2}$ y $Z_{3}$ las variables aleatorias independientes con distribución $Exp(\lambda_{1})$, $Exp(\lambda_{2})$ y $Exp(\lambda_{1,2})$ respectivamente definidas como en el anterior inciso. Entonces $X=min(Z_{1},Z_{3})$ y $Y=min(Z_{2},Z_{3})$ tienen distribución $Exp(\lambda_{1}+\lambda_{1,2})$ y $Exp(\lambda_{2}+\lambda_{1,2})$ respectivamente. 
+
+Con lo cual, $u=e^{-(\lambda_{1}+\lambda_{1,2})x}$ y $v=e^{-(\lambda_{2}+\lambda_{1,2})y}$ son uniformes en $(0,1)$ utilizando el mismo argumento que en el inciso anterior del teorema de la transformada inversa, aplicada a las funciones de distribución de $X$ y $Y$ acumuladas. Ahora solo notemos que la distribución conjunta de $u$ y $v$ es la siguiente:
+
+\begin{align*}
+S_{U,V}(u,v) &= P(e^{-(\lambda_{1}+\lambda_{1,2})X} \geq u, e^{-(\lambda_{2}+\lambda_{1,2})Y} \geq v) \\
+ &= P(X\geq S_{X}^{-1}(u), Y\geq S_{Y}^{-1}(v)) \\
+ &= P(X\geq -\frac{ln(u)}{\lambda_{1}+\lambda_{1,2}}, Y\geq -\frac{ln(v)}{\lambda_{2}+\lambda_{1,2}}) \\
+ &= \textbf{exp}\{-\lambda_{1}S_{X}^{-1}(u) - \lambda_{2}S_{Y}^{-1}(v) - \lambda_{1,2}\text{max}(S_{X}^{-1}(u),S_{Y}^{-1}(v)) \}\\
+ &= \textbf{exp}\{-(\lambda_{1}+\lambda_{1,2})S_{X}^{-1}(u) - (\lambda_{2}+\lambda_{1,2})S_{Y}^{-1}(v) + \\
+ &  \lambda_{1,2}\text{min}(S_{X}^{-1}(u),S_{Y}^{-1}(v)) \}\\
+ &=S_{X}(S_{X}^{-1}(u)) S_{Y}(S_{Y}^{-1}(v)) \text{min}(\textbf{exp}(\lambda_{1,2}(S_{X}^{-1}(u))),\textbf{exp}(S_{Y}^{-1}(v))) \\
+ &= u v \text{min}(u^{-\alpha}, v^{-\beta}) \\
+ 
+ \end{align*}
+
+donde $\alpha=\frac{\lambda_{1,2}}{\lambda_{1}+\lambda_{1,2}}$ y $\beta=\frac{\lambda_{1,2}}{\lambda_{2}+\lambda_{1,2}}$.
+
+Y como pudimos observar, la distribución conjunta de $u$ y $v$ es la misma que la cópula de supervivencia dada en el libro. Además, notemos que $u=e^{-(\lambda_{1}+\lambda_{1,2})x}$ y $v=e^{-(\lambda_{2}+\lambda_{1,2})y}$ son uniformes en $(0,1)$ utilizando el mismo argumento que en el inciso anterior del teorema de la transformada inversa, aplicada a las funciones de distribución de $X$ y $Y$ acumuladas
