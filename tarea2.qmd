@@ -35,15 +35,317 @@ library(openxlsx)
 
 Consider the color-stimuli experiment outlined in Section 13.2.1. The similarity ratings are given in the file color-stimuli on the books's website. Carry out a clasical scaling of the data and show that the solution is a "color circle" ranging from violet (434 $m\mu$) to blue (472 $m\mu$) to green (504 $m\mu$) to yellow (584 $m\mu$) tto red  (674 $m\mu$). Compare the solution to the nonmetric scaling solution given in Figure 13.3.
 
+En primer lugar realizamos el `clásico MDS` con la función `cmdscale` del paquete `stats` de R. Y en un principio no obtuvimos los resultados esperados, esto pasó porque la base de datos de `color-stimuli` presenta una matriz de disimilaridad y no de proximidad, la cual por alguna extraña razón es la que utiliza el paquete `cmdscale` para realizar el MDS clásico. Con lo cual realizando los ajustes necesarios obtuvimos lo siguiente mostrados en la figura 1.
+
 ```{r}
 # Cargamos base de datos
 data1 <- read.xlsx("color_stimuli.xlsx")
-matrix <- as.matrix(data1)
+matrix <- 1- as.matrix(data1)
 
 # Clasical scaling
 classical <- cmdscale(matrix, k=2, eig=TRUE, add=TRUE)
+
 plot(classical$points, xlab="Dimension 1", ylab="Dimension 2", main="Clasical Scaling")
 ```
+
+Ahora bien, para poder comparar los resultados obtenidos con el MDS clásico, realizamos el MDS no métrico con la función `isoMDS` del paquete `MASS` y obtuvimos lo siguiente mostrado en la figura 2.
+
+![](non_metric_MDS.png)
+
+
+
+# Ejercicio 3
+
+En esta tabla de datos, debemos dividir los datos de tortugas macho y tortugas hembra por dimensiones de su caparazón (length, width, height). Para esto, estimaremos el vector de medias, la matriz de covarianzas, los eigenvalores y eigenvectores de la matriz. Después se hará una prueba de PCA para explicar la composición de los datos, y a partir de estos, estimar el volumen de caparazones y comparar volúmenes entre machos y hembras.
+
+Primero, volvemos logartimo natural los datos y separamos en dos grupos
+
+```
+library(ggplot2)
+library(dplyr)
+library(logisticPCA)
+
+turtles <- read.csv("turtles.csv")
+turtles <- turtles[1:4]
+turtles$length <- log(turtles$length)
+turtles$width <- log(turtles$width)
+turtles$height <- log(turtles$height)
+
+
+turtlesF <- turtles[turtles$sex=="f ",]
+turtlesM <- turtles[turtles$sex=="m ",]
+
+```
+
+Luego, estimamos las medias y covarianzas de ambos grupos
+
+```
+#Mean Vector
+meanF <- colMeans(turtlesF[2:4])
+meanM <- colMeans(turtlesM[2:4])
+#Covariate Matrix
+covF <- cov(turtlesF[2:4])
+covM <- cov(turtlesM[2:4])
+
+meanF
+covF
+
+meanM
+covM
+```
+```
+> meanF
+  length    width   height 
+4.900356 4.622909 3.938253 
+> covF
+           length      width     height
+length 0.02639101 0.02012395 0.02544294
+width  0.02012395 0.01619045 0.01978187
+height 0.02544294 0.01978187 0.02589861
+> 
+> meanM
+  length    width   height 
+4.725444 4.477574 3.703186 
+> covM
+            length       width      height
+length 0.011072004 0.008019142 0.008159648
+width  0.008019142 0.006416726 0.006005271
+height 0.008159648 0.006005271 0.006772758
+
+```
+
+Esta información sirve para distinguir media logarítmica y varianzas en los datos de las medidas para hembras (F) y machos (M).
+
+Luego, calculamos los eigenvalores y eigenvectores. Esto nos da:
+
+```
+# Calculate Eigenvalues and Eigenvectors
+eigen_resF <- eigen(covF)
+eigen_resM <- eigen(covM)
+
+# Extract Eigenvalues and Eigenvectors
+eigenvaluesF <- eigen_resF$values
+eigenvectorsF <- eigen_resF$vectors
+eigenvaluesM <- eigen_resM$values
+eigenvectorsM <- eigen_resM$vectors
+
+eigenvaluesF
+eigenvectorsF
+eigenvaluesM
+eigenvectorsM
+```
+```
+#Female eigenvalues and eigenvectors
+> eigenvaluesF
+[1] 0.0671996134 0.0007504524 0.0005300013
+> eigenvectorsF
+           [,1]       [,2]        [,3]
+[1,] -0.6222644 -0.4551794  0.63686634
+[2,] -0.4840714 -0.4156193 -0.77002303
+[3,] -0.6151926  0.7874467 -0.03828576
+
+
+
+#Male eigenvalues and eigenvectors
+> eigenvaluesM
+[1] 0.0233033471 0.0005983049 0.0003598360
+> eigenvectorsM
+          [,1]       [,2]       [,3]
+[1,] 0.6831023 -0.1594791  0.7126974
+[2,] 0.5102195 -0.5940118 -0.6219534
+[3,] 0.5225392  0.7884900 -0.3244015
+```
+
+Obtenido esto, ahora podemos hacer una prueba de PCA para determinar: 
+1. Independencia y maximizar varianza explicada
+2. Determinar la varianza explicada
+3. Describir el volúmen de los caparazones
+
+Primero haremos las pruebas:
+
+```
+#PCA
+#calculate principal components
+resultsF <- prcomp(turtlesF[2:4], scale = TRUE)
+resultsM <- prcomp(turtlesM[2:4], scale = TRUE)
+
+
+#reverse the signs
+resultsF$rotation <- -1*resultsF$rotation
+resultsM$rotation <- -1*resultsM$rotation
+
+#display principal components
+resultsF$rotation
+resultsM$rotation
+
+#Plot the graph of PCA
+biplot(resultsF, scale = 0)
+biplot(resultsM, scale = 0)
+```
+```
+              PC1         PC2        PC3
+length -0.5783156  0.01667633  0.8156427
+width  -0.5769015  0.69855716 -0.4233233
+height -0.5768325 -0.71535990 -0.3943659
+> resultsM$rotation
+              PC1         PC2        PC3
+length -0.5822240  0.08657634 -0.8084057
+width  -0.5758517  0.65800535  0.4852049
+height -0.5739425 -0.74801972  0.3332514
+```
+![PCAFemale.png](PCAFemale.png) Female PCA
+![PCAMale.png](PCAMale.png) Male PCA
+
+Notemos que PC1 es casi una expresión lineal del vector $(1,1,1)$, con lo cual, PC1 se puede considerar un proxy para estimar el volúmen de caparazones.
+
+Sumado a esto, también tenemos la "Gráfica de Codo" y la explicación de varianza:
+
+```
+#calculate total variance explained by each principal component
+var_explainedF = resultsF$sdev^2 / sum(resultsF$sdev^2)
+var_explainedM = resultsM$sdev^2 / sum(resultsM$sdev^2)
+
+var_explainedF
+var_explainedM
+
+#create scree plot
+qplot(c(1:3), var_explainedF) + 
+  geom_line() + 
+  xlab("Principal Component") + 
+  ylab("Variance Explained") +
+  ggtitle("Scree Plot (Female Turtles)") +
+  ylim(0, 1)
+qplot(c(1:3), var_explainedM) + 
+  geom_line() + 
+  xlab("Principal Component") + 
+  ylab("Variance Explained") +
+  ggtitle("Scree Plot (Male Turtles)") +
+  ylim(0, 1)
+
+```
+```
+> var_explainedF
+[1] 0.980621921 0.011317924 0.008060156
+> var_explainedM
+[1] 0.95661453 0.02987152 0.01351394
+```
+![ScreePlotFemale.png](ScreePlotFemale.png) Female Scree Plot
+![ScreePlotMale.png](ScreePlotMale.png) Male Scree Plot
+
+Más del 95% de la varianza lo explica el PCA1. Por tanto, para describir el volumen podemos usar casi a la perfección el PCA1 y hacer una simple regresión para diferenciar caparazones de machos y hembras en sus volúmenes.
+
+Por último, creamos un Dataframe con el PCA1 y los volúmenes calculados, los cuales se usará con la fórmula $Vol = (\pi/6) * \exp(loglength + logwidth + logheight)$
+
+```
+#Volumen y regresión
+
+turtles$Volume <- pi/6*exp(turtles$length+turtles$width+turtles$height)
+ggplot(turtles, aes(x = height, y = Volume, color = sex)) +
+  geom_point() +
+  labs(title = "Scatter Plot of Female and Male Turtles", 
+       x = "X-axis Label", y = "Y-axis Label") +
+  theme_minimal()
+
+
+
+#PCA Data
+pca_scores <- as.matrix(turtlesF[2:4]) %*% resultsF$rotation
+
+# Extract the first principal component (PCA1)
+pca1 <- pca_scores[, 1]
+
+# Create a new data frame with only PCA1
+df_pca1 <- data.frame(PCA1 = pca1)
+df_pca1
+df_pca1$Volume <-pi/6*exp(turtlesF$length+turtlesF$width+turtlesF$height)
+
+
+
+
+#PCA Data
+pca_scores2 <- as.matrix(turtlesM[2:4]) %*% resultsM$rotation
+
+# Extract the first principal component (PCA1)
+pca2 <- pca_scores2[, 1]
+
+# Create a new data frame with only PCA1
+df_pca2 <- data.frame(PCA1 = pca2)
+df_pca2
+df_pca2$Volume <-pi/6*exp(turtlesM$length+turtlesM$width+turtlesM$height)
+
+
+
+plot <- ggplot()+
+  geom_point(data=df_pca1, aes(x = PCA1, y = Volume), color="red")+
+  geom_point(data=df_pca2, aes(x = PCA1, y = Volume),color="blue") +
+  labs(title = "Scatter Plot of Female and Male Turtles", 
+       x = "X-axis Label", y = "Y-axis Label") +
+  theme_minimal()
+print(plot)
+
+```
+![TurtlesPlot.png](TurtlesPlot.png) Turtles Plot
+
+Con esto podemos ver una fuerte correlación exponencial entre el PCA1 de cada sexo y su volúmen de caparazón. Con esto queda descrito el problema de la simplificación de los datos a una sola variable explicatoria por medio de PCA Analysis.
+
+
+
+# Ejercicio 4
+
+Let X and Y be random variables with a joint distribution function given by
+
+$$
+H(x,y)=(1+e^{-x}+e^{-y})^{-1}
+$$
+
+for all $x$, $y$ in $\overline{R}$.
+
+a. Show that X and Y have standard (univariate) logistic distributions, i. e.,
+
+$$
+F(x)=(1+e^{-x})^{-1} \space \space \space G(y)=(1+e^{-y})^{-1}
+$$
+
+b. Show that the copula of X and Y is the copula given by (2.3.4) in Example 2.8.
+
+**Solution:**
+
+a) Buscaremos las distribuciones marginales:
+
+$F(x) = \lim_{y \to \infty} \left(1+e^{-x}+ e^{-y}\right)^{-1} = \left(1+e^{-x}\right)^{-1}$
+
+$G(y) = \lim_{x \to \infty} \left(1+e^{-x}+ e^{-y}\right)^{-1} = \left(1+e^{-y}\right)^{-1}$
+
+$\text{Q.E.D.}$
+
+b) La cópula de $X$ e  $Y$  está dada por:
+
+$C(u, v) = \frac{H(F^{-1}(u), G^{-1}(v))}{uv}$
+
+Para encontrar la copula, necesitamos las funciones inversas de las distribuciones marginales $F^{-1}(u)$ y $G^{-1}(v)$.
+
+Para la distribución logística estándar, las funciones inversas son:
+
+$F^{-1}(u) = -\ln\left(\frac{1}{u} - 1\right)$
+$G^{-1}(v) = -\ln\left(\frac{1}{v} - 1\right)$
+
+Sustituyendo estas funciones inversas en la fórmula de la copula:
+
+$C(u, v) = \frac{H\left(-\ln\left(\frac{1}{u} - 1\right), -\ln\left(\frac{1}{v} - 1\right)\right)}{uv}$
+
+$= \left(1+e^{\ln\left(\frac{1}{u} - 1\right)} + e^{\ln\left(\frac{1}{v} - 1\right)}\right)^{-1} / uv$
+
+$= \left(1+ \frac{1}{u} -1+ \frac{1}{v} -1\right)^{-1} / uv$
+
+$= \left(\frac{1}{u} + \frac{1}{v} -1\right)^{-1} / uv$
+
+$= \frac{1}{\left(\frac{uv}{u} + \frac{uv}{v} - uv \right)}$
+
+$= \frac{1}{(u+v-uv)}$
+
+
+Que era lo que queríamos demostrar.
+
 
 # Ejercicio 5
 
@@ -60,8 +362,6 @@ Primero notemos que si $Z$ es una variable aleatoria con distribución $Exp(\lam
 Con lo cual por el teorema de la transformada inversa, si $U$ es una variable aleatoria con distribución uniforme en $(0,1)$, entonces $F_{Z}^{-1}(U)=-\frac{ln(1-U)}{\lambda}$ tiene distribución $Exp(\lambda)$. 
 
 Por lo tanto con el algoritmo, tenemos que $Z_{1}=-\frac{ln(1-r)}{\lambda_{1}}$, $Z_{2}=-\frac{ln(1-s)}{\lambda_{2}}$ y $Z_{3}=-\frac{ln(1-t)}{\lambda_{1,2}}$ tienen distribución $Exp(\lambda_{1})$, $Exp(\lambda_{2})$ y $Exp(\lambda_{1,2})$ respectivamente. Las cuales son exponenciales independientes porque son transformaciones individuales de variables que igualmente son independientes. Y de acuerdo con la definición del libro, $X=min(Z_{1},Z_{3})$ y $Y=min(Z_{2},Z_{3})$ tienen distribución Marshall-Olkin bivariada con parámetros $\lambda_{1}$, $\lambda_{2}$ y $\lambda_{1,2}$.
-
-**CHECAR CON PROFE DEMOSTRACIÓN**
 
 (B) Show that $u=e^{-(\lambda_{1}+\lambda_{1,2})x}$ and $v=e^{-(\lambda_{2}+\lambda_{1,2})y}$ are uniform (0,1) variates whose joint distribution is the Marshall-Olkin copula given by 3.1.3.
 
