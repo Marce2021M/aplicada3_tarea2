@@ -45,12 +45,97 @@ matrix <- 1- as.matrix(data1)
 # Clasical scaling
 classical <- cmdscale(matrix, k=2, eig=TRUE, add=TRUE)
 
-plot(classical$points, xlab="Dimension 1", ylab="Dimension 2", main="Clasical Scaling")
+hexcodes <- c('#2800ff', 
+              '#0028ff',
+              '#0092ff',
+              '#00b2ff',
+              '#00ffff',
+              '#00ff61',
+              '#77ff00',
+              '#b3ff00',
+              '#fff200',
+              '#ffbe00',
+              '#ff9b00',
+              '#ff5700',
+              '#ff0000',
+              '#e50000'
+              )
+
+# Mapear longitudes de onda a colores 
+
+wavelengths <- c(434, 445, 465, 472, 490, 504, 537, 555, 584, 600, 610, 628, 651, 674)
+
+# Crear un dataframe para ggplot
+df <- data.frame(classical$points, Wavelength = wavelengths, Color = hexcodes)
+
+# Crear la gráfica
+ggplot(df, aes(x = X1, y = X2, color = Color, label = Wavelength)) +
+  geom_point() +
+  geom_text(vjust = -1) +
+  scale_color_identity() +
+  labs(title = "Classical Scaling", x = "Dimension 1", y = "Dimension 2") +
+  theme_minimal()
+
 ```
 
-Ahora bien, para poder comparar los resultados obtenidos con el MDS clásico, realizamos el MDS no métrico con la función `isoMDS` del paquete `MASS` y obtuvimos lo siguiente mostrado en la figura 2.
+Ahora bien, para poder comparar los resultados obtenidos con el MDS clásico contra los resultados del la `figura 13.3` del libro tenemos la siguiente imagen.
 
 ![](non_metric_MDS.png)
+
+Y notamos que con el clásico logramos el mismo efecto de círculo de colores esperado y observado con el no métrico. De hecho, realmente los resultados son muy similares obtenidos por los dos métodos si solo nos fijamos en la estructura de los colores sin importar rotaciones o escalas. Claro que hay ligeras torciones observadas en el círculo de colores del clásico contra el no paramétrico, pero no son nada significativas. Como conclusión final, hace mucho sentido lo obtenido por el MDS clásico y no paramétrico, ya que los colores muy similares entre sí están más cerca, mientras que los colores muy diferentes están más lejos. 
+
+# Ejercicio 2
+
+Generate a random sample of size $n=100$ from a three dimensional Gaussian distribution, where one of the variables has very high variance (relative to the other two). Carry out PCA on these data using the covariance matri and the correlation matrix. In each case, find the eigenvalues and eigenvectors, draw the scree plot, compute the PC scores, and plot all pairwise PC scores in a matrix plot. Compare results.
+
+```{r}
+# Load necessary libraries
+library(MASS)
+library(ggplot2)
+#library(GGally)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Generate random sample
+n <- 100
+mu <- c(0, 0, 0)
+sigma <- matrix(c(1, 0.2, 0.5, 0.2, 5, 0.3, 0.5, 0.3, 1), nrow = 3)
+data <- mvrnorm(n, mu, sigma)
+
+# Perform PCA using covariance matrix
+pca_cov <- prcomp(data, scale. = FALSE)
+
+# Perform PCA using correlation matrix
+pca_cor <- prcomp(data, scale. = TRUE)
+
+# Extract eigenvalues and eigenvectors
+eigenvalues_cov <- pca_cov$sdev^2
+eigenvectors_cov <- pca_cov$rotation
+
+eigenvalues_cor <- pca_cor$sdev^2
+eigenvectors_cor <- pca_cor$rotation
+
+# Scree plots
+par(mfrow = c(1, 2))
+plot(1:3, eigenvalues_cov, type = "b", main = "Scree Plot (Covariance Matrix)", xlab = "Principal Component", ylab = "Eigenvalue")
+plot(1:3, eigenvalues_cor, type = "b", main = "Scree Plot (Correlation Matrix)", xlab = "Principal Component", ylab = "Eigenvalue")
+
+# Compute PC scores
+scores_cov <- predict(pca_cov)
+scores_cor <- predict(pca_cor)
+
+# Matrix plot of pairwise PC scores
+pairs(data.frame(scores_cov), main = "Pairwise PC Scores (Covariance Matrix)")
+pairs(data.frame(scores_cor), main = "Pairwise PC Scores (Correlation Matrix)")
+
+```
+
+Podemos observar del Scree Plot que la explicación de varianza para el PCA medido con covarianza es mayor para el primer componente, formando allí el codo. Mientras tanto, el PCA de correlación no muestra codo sino una línea recta, con lo cual no es posible medir bien qué componente principal eliminar al ser todos significativos.
+
+Sumado a esto, en las gráficas de Pairwise PCA Score, podemos ver que la distribución de datos para Covarianza son más dispersos y con más caos, lo cual es más informativo de cuáles componentes son informativas para representar los datos. Mientras tanto, los Pairwise PCA Score de correlación presentan menos dispersión debido a su eigenvalor más pequeño, su menor sesgo en representación y por su unicidad (correlación quita la magnitud de varianza de la normal multivariada). El puntaje de covarianza de la Gaussiana multivariada se ve afectada en el PCA Analysis por la mayor magnitud de varianza de la distribución en su segunda dimensión $Var(X_2)=5$, lo cual genera datos más sesgados y centrados a la segunda variable, lo que a su vez pesa mucho en la varianza total de todos los datos, su dispersión, y el Scree Plot. La desviación del Scree Plot en el codo es principalmente a esto, puesto que en el de correlación no hay codo y la gráfica es una línea recta, lo cual indica que cada componente tiene casi la misma importancia al estandarizarse la varianza a magnitud unitaria.
+
+
 
 
 
@@ -60,12 +145,12 @@ En esta tabla de datos, debemos dividir los datos de tortugas macho y tortugas h
 
 Primero, volvemos logartimo natural los datos y separamos en dos grupos
 
-```
+```{r}
 library(ggplot2)
 library(dplyr)
 library(logisticPCA)
 
-turtles <- read.csv("turtles.csv")
+turtles <- read.xlsx("turtles.xlsx")
 turtles <- turtles[1:4]
 turtles$length <- log(turtles$length)
 turtles$width <- log(turtles$width)
@@ -79,7 +164,7 @@ turtlesM <- turtles[turtles$sex=="m ",]
 
 Luego, estimamos las medias y covarianzas de ambos grupos
 
-```
+```{r}
 #Mean Vector
 meanF <- colMeans(turtlesF[2:4])
 meanM <- colMeans(turtlesM[2:4])
@@ -92,33 +177,15 @@ covF
 
 meanM
 covM
-```
-```
-> meanF
-  length    width   height 
-4.900356 4.622909 3.938253 
-> covF
-           length      width     height
-length 0.02639101 0.02012395 0.02544294
-width  0.02012395 0.01619045 0.01978187
-height 0.02544294 0.01978187 0.02589861
-> 
-> meanM
-  length    width   height 
-4.725444 4.477574 3.703186 
-> covM
-            length       width      height
-length 0.011072004 0.008019142 0.008159648
-width  0.008019142 0.006416726 0.006005271
-height 0.008159648 0.006005271 0.006772758
 
 ```
+
 
 Esta información sirve para distinguir media logarítmica y varianzas en los datos de las medidas para hembras (F) y machos (M).
 
 Luego, calculamos los eigenvalores y eigenvectores. Esto nos da:
 
-```
+```{r}
 # Calculate Eigenvalues and Eigenvectors
 eigen_resF <- eigen(covF)
 eigen_resM <- eigen(covM)
@@ -134,36 +201,18 @@ eigenvectorsF
 eigenvaluesM
 eigenvectorsM
 ```
-```
-#Female eigenvalues and eigenvectors
-> eigenvaluesF
-[1] 0.0671996134 0.0007504524 0.0005300013
-> eigenvectorsF
-           [,1]       [,2]        [,3]
-[1,] -0.6222644 -0.4551794  0.63686634
-[2,] -0.4840714 -0.4156193 -0.77002303
-[3,] -0.6151926  0.7874467 -0.03828576
-
-
-
-#Male eigenvalues and eigenvectors
-> eigenvaluesM
-[1] 0.0233033471 0.0005983049 0.0003598360
-> eigenvectorsM
-          [,1]       [,2]       [,3]
-[1,] 0.6831023 -0.1594791  0.7126974
-[2,] 0.5102195 -0.5940118 -0.6219534
-[3,] 0.5225392  0.7884900 -0.3244015
-```
 
 Obtenido esto, ahora podemos hacer una prueba de PCA para determinar: 
+
 1. Independencia y maximizar varianza explicada
+  
 2. Determinar la varianza explicada
+   
 3. Describir el volúmen de los caparazones
 
 Primero haremos las pruebas:
 
-```
+```{r}
 #PCA
 #calculate principal components
 resultsF <- prcomp(turtlesF[2:4], scale = TRUE)
@@ -182,25 +231,12 @@ resultsM$rotation
 biplot(resultsF, scale = 0)
 biplot(resultsM, scale = 0)
 ```
-```
-              PC1         PC2        PC3
-length -0.5783156  0.01667633  0.8156427
-width  -0.5769015  0.69855716 -0.4233233
-height -0.5768325 -0.71535990 -0.3943659
-> resultsM$rotation
-              PC1         PC2        PC3
-length -0.5822240  0.08657634 -0.8084057
-width  -0.5758517  0.65800535  0.4852049
-height -0.5739425 -0.74801972  0.3332514
-```
-![PCAFemale.png](PCAFemale.png) Female PCA
-![PCAMale.png](PCAMale.png) Male PCA
 
 Notemos que PC1 es casi una expresión lineal del vector $(1,1,1)$, con lo cual, PC1 se puede considerar un proxy para estimar el volúmen de caparazones.
 
 Sumado a esto, también tenemos la "Gráfica de Codo" y la explicación de varianza:
 
-```
+```{r, warning=FALSE}
 #calculate total variance explained by each principal component
 var_explainedF = resultsF$sdev^2 / sum(resultsF$sdev^2)
 var_explainedM = resultsM$sdev^2 / sum(resultsM$sdev^2)
@@ -223,27 +259,19 @@ qplot(c(1:3), var_explainedM) +
   ylim(0, 1)
 
 ```
-```
-> var_explainedF
-[1] 0.980621921 0.011317924 0.008060156
-> var_explainedM
-[1] 0.95661453 0.02987152 0.01351394
-```
-![ScreePlotFemale.png](ScreePlotFemale.png) Female Scree Plot
-![ScreePlotMale.png](ScreePlotMale.png) Male Scree Plot
 
 Más del 95% de la varianza lo explica el PCA1. Por tanto, para describir el volumen podemos usar casi a la perfección el PCA1 y hacer una simple regresión para diferenciar caparazones de machos y hembras en sus volúmenes.
 
-Por último, creamos un Dataframe con el PCA1 y los volúmenes calculados, los cuales se usará con la fórmula $Vol = (\pi/6) * \exp(loglength + logwidth + logheight)$
+Por último, creamos un Dataframe con el PCA1 y los volúmenes calculados, los cuales se usará con la fórmula $Vol = (\pi/6) * \exp(\text{loglength} + \text{logwidth} + \text{logheight})$
 
-```
+```{r}
 #Volumen y regresión
 
 turtles$Volume <- pi/6*exp(turtles$length+turtles$width+turtles$height)
 ggplot(turtles, aes(x = height, y = Volume, color = sex)) +
   geom_point() +
   labs(title = "Scatter Plot of Female and Male Turtles", 
-       x = "X-axis Label", y = "Y-axis Label") +
+       x = "X-axis Label(height)", y = "Y-axis Label(Volume)") +
   theme_minimal()
 
 
@@ -284,7 +312,6 @@ plot <- ggplot()+
 print(plot)
 
 ```
-![TurtlesPlot.png](TurtlesPlot.png) Turtles Plot
 
 Con esto podemos ver una fuerte correlación exponencial entre el PCA1 de cada sexo y su volúmen de caparazón. Con esto queda descrito el problema de la simplificación de los datos a una sola variable explicatoria por medio de PCA Analysis.
 
@@ -367,7 +394,7 @@ Por lo tanto con el algoritmo, tenemos que $Z_{1}=-\frac{ln(1-r)}{\lambda_{1}}$,
 
 En este caso necesitamos demostrar el siguiente lema. Sean $X$ y $Y$ variables aleatorias independientes con distribución $Exp(\lambda)$ y $Exp(\mu)$ respectivamente. Entonces $Z=\text{min}(X,Y)\sim Exp(\lambda + \mu)$. 
 
-Para demostrarlo notemos que $P(Z>=z)=P(X>=x, Y>=y)$ y como son independientes obtenemos el siguiente desarrollo:
+Para demostrarlo notemos que $P(Z\geq z)=P(X\geq x, Y \geq y)$ y como son independientes obtenemos el siguiente desarrollo:
 
 \begin{align*}
 P(Z\geq z)=P(X\geq z, Y\geq z) &= P(X\geq z)P(Y\geq z)\\
@@ -389,8 +416,7 @@ S_{U,V}(u,v) &= P(e^{-(\lambda_{1}+\lambda_{1,2})X} \geq u, e^{-(\lambda_{2}+\la
  &= \textbf{exp}\{-(\lambda_{1}+\lambda_{1,2})S_{X}^{-1}(u) - (\lambda_{2}+\lambda_{1,2})S_{Y}^{-1}(v) + \\
  &  \lambda_{1,2}\text{min}(S_{X}^{-1}(u),S_{Y}^{-1}(v)) \}\\
  &=S_{X}(S_{X}^{-1}(u)) S_{Y}(S_{Y}^{-1}(v)) \text{min}(\textbf{exp}(\lambda_{1,2}(S_{X}^{-1}(u))),\textbf{exp}(S_{Y}^{-1}(v))) \\
- &= u v \text{min}(u^{-\alpha}, v^{-\beta}) \\
- 
+ &= u v \text{min}(u^{-\alpha}, v^{-\beta})\\
  \end{align*}
 
 donde $\alpha=\frac{\lambda_{1,2}}{\lambda_{1}+\lambda_{1,2}}$ y $\beta=\frac{\lambda_{1,2}}{\lambda_{2}+\lambda_{1,2}}$.
