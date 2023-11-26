@@ -41,7 +41,8 @@ En primer lugar realizamos el `clásico MDS` con la función `cmdscale` del paqu
 # Cargamos base de datos
 data1 <- read.xlsx("color_stimuli.xlsx")
 matrix <- 1- as.matrix(data1)
-
+diag1 <- diag(rep(1,14))
+matrix <- matrix - diag1
 # Clasical scaling
 classical <- cmdscale(matrix, k=2, eig=TRUE, add=TRUE)
 
